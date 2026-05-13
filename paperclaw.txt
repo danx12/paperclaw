@@ -1,0 +1,41 @@
+# PaperClaw - the workshop project
+
+A small document-management tool you can build in the workshop and keep improving afterwards.
+
+This is the project overview. The detailed tasks are in the three milestone files next to this one. If you get through those, `bonus-milestones.md` has ideas for where to take it next.
+
+---
+
+## What you're building
+
+You start with a folder full of everyday paperwork: utility bills, invoices, contracts, insurance letters, bank statements, or the occasional letter from the Finanzamt.
+
+PaperClaw turns that folder into an organized document library. PDFs go in, get classified, receive sensible filenames, and end up next to a markdown transcript that an agent can read and search.
+
+The pipeline:
+
+```
+~/inbox/  →  classify  →  ~/library/  →  an agent that answers questions about it
+```
+
+By the end, an agent should be able to answer practical questions such as:
+
+> *"Find the invoice for that gadget from three months ago."*
+> *"Which bills are overdue?"*
+> *"Show me the latest electricity bill."*
+
+---
+
+## Why this project
+
+This is deliberately mundane. Everyone has paperwork, and Germany provides no shortage of PDFs worth organizing.
+
+It also exercises the parts of agentic engineering we care about:
+
+- making product decisions before generating code
+- designing a file layout an agent can work with
+- creating feedback loops so the project stays maintainable
+- exposing the result through an interface an agent can drive
+
+The implementation can stay simple. A CLI and folders on disk are enough. The interesting work is deciding what reliable behavior looks like, then giving the agent enough structure to build it.
+
