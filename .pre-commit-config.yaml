@@ -4,18 +4,18 @@ repos:
       - id: ruff-check
         name: ruff lint + autofix
         language: system
-        entry: uv run ruff check --fix
+        entry: pixi run ruff check --fix
         types: [python]
 
       - id: black
         name: black format
         language: system
-        entry: uv run black
+        entry: pixi run black
         types: [python]
 
       - id: pytest
         name: pytest (non-integration)
         language: system
-        entry: uv run pytest -m "not integration"
+        entry: pixi run pytest -m "not integration"
         pass_filenames: false
         always_run: true
