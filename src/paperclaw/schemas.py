@@ -10,10 +10,14 @@ from pydantic import BaseModel, Field, model_validator
 class DocumentType(StrEnum):
     INVOICE = "invoice"
     BILL = "bill"
+    RECEIPT = "receipt"
     CONTRACT = "contract"
     BANK_STATEMENT = "bank_statement"
     TAX = "tax"
     INSURANCE = "insurance"
+    PAYSLIP = "payslip"
+    MEDICAL = "medical"
+    WARRANTY = "warranty"
     LETTER = "letter"
     OTHER = "other"
 

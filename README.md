@@ -113,7 +113,7 @@ Each part is separated by `_`. The vendor and reference segments are **slugified
 | vendor | `unknown` |
 | reference | `noref` |
 
-**Document types:** `invoice`, `bill`, `contract`, `bank_statement`, `tax`, `insurance`, `letter`, `other`
+**Document types:** `invoice`, `bill`, `receipt`, `contract`, `bank_statement`, `tax`, `insurance`, `payslip`, `medical`, `warranty`, `letter`, `other`
 
 **Examples:**
 
@@ -207,7 +207,7 @@ paperclaw chat --library /tmp/paperclaw-demo/library --ask "Which invoices are a
 | Neither | 0.30 | Escalate to Claude |
 | Empty text (image-only) | 0.00 | `_unsorted/`, skip Claude |
 
-Local patterns cover German and English document keywords (`rechnung`, `invoice`, `kontoauszug`, `statement`, `finanzamt`, `tax`, …).
+Local patterns cover German and English document keywords (`rechnung`, `invoice`, `kontoauszug`, `statement`, `finanzamt`, `tax`, `quittung`, `kassenbon`, `gehaltsabrechnung`, `arztrechnung`, `garantie`, …).
 
 ## Development
 

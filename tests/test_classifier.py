@@ -89,6 +89,74 @@ class TestLocalRulesClassifier:
         doc = clf.classify(_raw(tmp_path, text="Versicherung Hausrat 2024"))
         assert doc.doc_type == DocumentType.INSURANCE
 
+    # --- new types ---
+
+    def test_receipt_filename(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(
+            _raw(tmp_path, filename="kassenbon-rewe.pdf", text="content")
+        )
+        assert doc.doc_type == DocumentType.RECEIPT
+        assert doc.confidence == 0.85
+
+    def test_receipt_content(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, text="Quittung Nr. 42\nSumme 9.99 EUR"))
+        assert doc.doc_type == DocumentType.RECEIPT
+
+    def test_receipt_english_keyword(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, text="Thank you for your purchase\nreceipt"))
+        assert doc.doc_type == DocumentType.RECEIPT
+
+    def test_payslip_filename(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(
+            _raw(tmp_path, filename="gehaltsabrechnung-2024-01.pdf", text="x")
+        )
+        assert doc.doc_type == DocumentType.PAYSLIP
+        assert doc.confidence == 0.85
+
+    def test_payslip_content(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, text="Lohnabrechnung Monat Januar 2024"))
+        assert doc.doc_type == DocumentType.PAYSLIP
+
+    def test_medical_filename(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, filename="arztrechnung-2024.pdf", text="x"))
+        assert doc.doc_type == DocumentType.MEDICAL
+        assert doc.confidence == 0.85
+
+    def test_medical_content_german(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(
+            _raw(tmp_path, text="Krankenhaus Berlin\nRechnung Behandlung")
+        )
+        assert doc.doc_type == DocumentType.MEDICAL
+
+    def test_medical_content_english(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, text="Lab result: blood panel negative"))
+        assert doc.doc_type == DocumentType.MEDICAL
+
+    def test_warranty_filename(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, filename="garantieschein-tv.pdf", text="x"))
+        assert doc.doc_type == DocumentType.WARRANTY
+        assert doc.confidence == 0.85
+
+    def test_warranty_content(self, tmp_path: Path) -> None:
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, text="Garantie 2 Jahre ab Kaufdatum"))
+        assert doc.doc_type == DocumentType.WARRANTY
+
+    def test_receipt_beats_invoice_on_filename(self, tmp_path: Path) -> None:
+        # "kassenbon" should win over generic "rechnung" body text
+        clf = LocalRulesClassifier()
+        doc = clf.classify(_raw(tmp_path, filename="kassenbon.pdf", text="rechnung"))
+        assert doc.doc_type == DocumentType.RECEIPT
+
     def test_returns_classified_document(self, tmp_path: Path) -> None:
         clf = LocalRulesClassifier()
         result = clf.classify(_raw(tmp_path, text="invoice"))

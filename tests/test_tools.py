@@ -63,6 +63,19 @@ def test_tool_schemas_have_required_fields() -> None:
         assert tool["input_schema"]["type"] == "object"
 
 
+def test_search_tool_enum_matches_document_type() -> None:
+    from paperclaw.schemas import DocumentType
+
+    search_schema = next(t for t in TOOL_SCHEMAS if t["name"] == "search_documents")
+    tool_enum = set(search_schema["input_schema"]["properties"]["doc_type"]["enum"])
+    schema_values = {str(dt) for dt in DocumentType}
+    assert tool_enum == schema_values, (
+        f"search_documents doc_type enum is out of sync with DocumentType.\n"
+        f"  Missing from tool: {schema_values - tool_enum}\n"
+        f"  Extra in tool:     {tool_enum - schema_values}"
+    )
+
+
 def test_list_documents_paginates(index: LibraryIndex) -> None:
     out = json.loads(execute_tool("list_documents", {"page": 1, "page_size": 1}, index))
     assert out["page"] == 1

@@ -13,7 +13,22 @@ from paperclaw.schemas import ClassifiedDocument, DocumentType, RawDocument
 logger = logging.getLogger(__name__)
 
 _PATTERNS: list[tuple[str, DocumentType]] = [
-    (r"stromrechnung|gasrechnung|bill", DocumentType.BILL),
+    # Bill patterns before invoice so "stromrechnung" doesn't match "rechnung" → invoice
+    (
+        r"stromrechnung|gasrechnung|wasserrechnung|nebenkostenabrechnung",
+        DocumentType.BILL,
+    ),
+    (r"quittung|kassenbon|kassenbон|receipt|bon\b", DocumentType.RECEIPT),
+    (
+        r"lohnabrechnung|gehaltsabrechnung|gehaltsnachweis|payslip|lohnzettel",
+        DocumentType.PAYSLIP,
+    ),
+    (
+        r"arztrechnung|krankenhaus|apotheke|rezept|befund"
+        r"|krankenkasse|medical|prescription|laboratory|lab\s*result",
+        DocumentType.MEDICAL,
+    ),
+    (r"garantie|garantieschein|warranty|gewährleistung", DocumentType.WARRANTY),
     (r"rechnung|invoice", DocumentType.INVOICE),
     (r"kontoauszug|statement", DocumentType.BANK_STATEMENT),
     (r"vertrag|contract", DocumentType.CONTRACT),
@@ -21,10 +36,30 @@ _PATTERNS: list[tuple[str, DocumentType]] = [
     (r"versicherung|insurance", DocumentType.INSURANCE),
 ]
 
-_CLASSIFY_USER = """\
+_DOC_TYPES = (
+    '"invoice"'
+    ', "bill"'
+    ', "receipt"'
+    ', "contract"'
+    ', "bank_statement"'
+    ', "tax"'
+    ', "insurance"'
+    ', "payslip"'
+    ', "medical"'
+    ', "warranty"'
+    ', "letter"'
+    ', "other"'
+)
+
+_CLASSIFY_USER = f"""\
 Classify the following document. Return a JSON object with exactly these fields:
-- doc_type: one of "invoice", "bill", "contract", "bank_statement",
-  "tax", "insurance", "letter", "other"
+- doc_type: one of {_DOC_TYPES}
+  Use "receipt" for point-of-sale / till receipts (no payment terms).
+  Use "bill" for utility / service bills (electricity, gas, water, telecoms).
+  Use "invoice" for commercial invoices with payment terms.
+  Use "payslip" for salary or wage slips.
+  Use "medical" for doctor bills, prescriptions, lab results, or health-insurance docs.
+  Use "warranty" for product guarantee certificates.
 - date: "YYYY-MM-DD" or null
 - vendor: string or null
 - amount: number or null
@@ -33,16 +68,21 @@ Classify the following document. Return a JSON object with exactly these fields:
 - confidence: number between 0.0 and 1.0
 
 Document text:
-{text}
+{{text}}
 
 Return only valid JSON, no explanation."""
 
-_VISION_USER = """\
+_VISION_USER = f"""\
 This is a scanned or image-only document. Perform OCR and classify it.
 Return a JSON object with exactly these fields:
 - extracted_text: the full text content of the document, preserving line breaks
-- doc_type: one of "invoice", "bill", "contract", "bank_statement",
-  "tax", "insurance", "letter", "other"
+- doc_type: one of {_DOC_TYPES}
+  Use "receipt" for point-of-sale / till receipts (no payment terms).
+  Use "bill" for utility / service bills (electricity, gas, water, telecoms).
+  Use "invoice" for commercial invoices with payment terms.
+  Use "payslip" for salary or wage slips.
+  Use "medical" for doctor bills, prescriptions, lab results, or health-insurance docs.
+  Use "warranty" for product guarantee certificates.
 - date: "YYYY-MM-DD" or null
 - vendor: string or null
 - amount: number or null

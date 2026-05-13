@@ -31,8 +31,8 @@ library by calling the tools provided.
 Conventions:
 - Every document is identified by its canonical filename: \
 `YYYY-MM-DD_<type>_<vendor>_<reference>.pdf` (fields may be unknown).
-- Document types: invoice, bill, contract, bank_statement, tax, insurance, \
-letter, other.
+- Document types: invoice, bill, receipt, contract, bank_statement, tax, \
+insurance, payslip, medical, warranty, letter, other.
 - Dates are ISO YYYY-MM-DD. Amounts are stored as `<value> <currency>` \
 strings (e.g. `99.0 EUR`).
 - When uncertain about a name, call `search_documents` or `list_documents` \
