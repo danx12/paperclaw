@@ -163,6 +163,75 @@ A `.md` sidecar with the same stem is written alongside every PDF:
 
 > **Privacy note.** Sidecars contain the full extracted text. Treat `~/library/` as sensitive storage — bank statements and tax documents are grep-able on disk.
 
+## MCP server
+
+`paperclaw mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io/) server over **stdio**, exposing the same four search tools as the chat REPL to any MCP-capable client — Claude Desktop, claude.ai/code, or your own agent.
+
+```bash
+paperclaw mcp --library ~/library
+```
+
+No Anthropic API key is required to run the server; the client brings its own.
+
+### Claude Desktop
+
+Add a server entry to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "paperclaw": {
+      "command": "paperclaw",
+      "args": ["mcp", "--library", "/path/to/your/library"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop and ask: *"What invoices do I have from last year?"*
+
+### Claude Code CLI
+
+Add the server with one command:
+
+```bash
+claude mcp add paperclaw -- paperclaw mcp --library ~/library
+```
+
+Or add it manually to `.claude/mcp.json` in your project:
+
+```json
+{
+  "paperclaw": {
+    "command": "paperclaw",
+    "args": ["mcp", "--library", "/path/to/your/library"]
+  }
+}
+```
+
+### Available tools
+
+The MCP server exposes the same four tools as the `chat` REPL:
+
+| Tool | Purpose |
+|---|---|
+| `list_documents` | Paginated metadata listing. Sort by `date_desc` (default), `date_asc`, or `name`. |
+| `search_documents` | Filter by doc type, vendor, date range, or keyword. All filters are AND-combined. |
+| `read_document` | Full sidecar (metadata + extracted text) for one canonical filename. |
+| `grep_documents` | Regex search across every sidecar body; returns `{document, line, snippet}` rows. |
+
+### Configuration
+
+Use the same `--library` option or `PAPERCLAW_LIBRARY` environment variable. A `--config` option accepts the same TOML file as `ingest` and `chat`.
+
+```bash
+# Via environment variable
+PAPERCLAW_LIBRARY=~/library paperclaw mcp
+
+# Via config file
+paperclaw mcp --config ~/.config/paperclaw/config.toml
+```
+
 ## Chat
 
 `paperclaw chat` opens an interactive REPL over a library. Claude has tool access to four search primitives and a context-aware metadata index built from the `.md` sidecars.

@@ -219,6 +219,40 @@ def chat(
         typer.secho(f"\nclaude> {reply}\n", fg=typer.colors.CYAN)
 
 
+@app.command("mcp")
+def mcp_serve(
+    library: Annotated[
+        Path | None,
+        typer.Option(help="Library root containing classified PDFs and sidecars."),
+    ] = None,
+    config: Annotated[
+        Path | None, typer.Option(help="Path to a TOML config file.")
+    ] = None,
+) -> None:
+    """Start an MCP server over stdio (for Claude Desktop, claude.ai/code, etc.)."""
+    load_dotenv()
+
+    from paperclaw._config import load_settings
+    from paperclaw.mcp_server import run_stdio
+
+    settings = load_settings(config_path=config, library=library)
+
+    if not settings.library.exists():
+        typer.secho(
+            f"Library directory {settings.library} does not exist.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    typer.secho(
+        f"PaperClaw MCP server starting for {settings.library} …",
+        fg=typer.colors.GREEN,
+        err=True,
+    )
+    run_stdio(settings.library)
+
+
 def _print_usage(session: object) -> None:
     summary = session.usage_summary  # type: ignore[attr-defined]
     typer.echo(

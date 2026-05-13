@@ -584,6 +584,7 @@ packages:
   requires_dist:
   - pdfplumber>=0.11
   - anthropic>=0.40
+  - mcp>=1.0
   - pydantic>=2.7
   - typer>=0.12
   - python-dotenv>=1.0
