@@ -18,10 +18,11 @@ class FilesystemStorer:
     ) -> LibraryDocument:
         src = classified.raw.source_path
 
+        suffix = src.suffix.lower() or ".pdf"
         if unsorted:
             dest_dir = self._library / "_unsorted"
             hash8 = content_hash(src)
-            fname = f"{src.stem}_{hash8}.pdf"
+            fname = f"{src.stem}_{hash8}{suffix}"
         else:
             fname = canonical_name(classified)
             dest_dir = self._library
@@ -32,7 +33,7 @@ class FilesystemStorer:
         if target.exists() and not unsorted:
             hash8 = content_hash(src)
             stem = Path(fname).stem
-            target = dest_dir / f"{stem}_{hash8}.pdf"
+            target = dest_dir / f"{stem}_{hash8}{suffix}"
 
         shutil.move(str(src), str(target))
 

@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(mes
 @app.command()
 def main(
     inbox: Annotated[
-        Path | None, typer.Option(help="Directory scanned for *.pdf.")
+        Path | None, typer.Option(help="Directory scanned for *.pdf and *.png.")
     ] = None,
     library: Annotated[
         Path | None, typer.Option(help="Destination root; _unsorted/ lives inside it.")
@@ -47,7 +47,7 @@ def main(
     from paperclaw._config import load_settings
     from paperclaw.classifier import ClaudeClassifier, LocalRulesClassifier
     from paperclaw.extractor import PdfPlumberExtractor
-    from paperclaw.pipeline import Pipeline
+    from paperclaw.pipeline import Pipeline, iter_inputs
     from paperclaw.storage import FilesystemStorer
 
     settings = load_settings(
@@ -78,21 +78,21 @@ def main(
         claude_min=settings.claude_min,
     )
 
-    pdfs = sorted(settings.inbox.glob("*.pdf"))
-    n = len(pdfs)
+    inputs = iter_inputs(settings.inbox)
+    n = len(inputs)
 
-    if not pdfs:
-        typer.echo(f"No PDF files found in {settings.inbox}.")
+    if not inputs:
+        typer.echo(f"No PDF or PNG files found in {settings.inbox}.")
         return
 
     key_status = f"Claude ({settings.model})" if claude_clf else "local rules only"
-    typer.echo(f"Found {n} PDF(s) in {settings.inbox}. [{key_status}]\n")
+    typer.echo(f"Found {n} file(s) in {settings.inbox}. [{key_status}]\n")
 
     results = []
-    for i, pdf in enumerate(pdfs, 1):
-        typer.echo(f"[{i}/{n}] {pdf.name} ... ", nl=False)
+    for i, path in enumerate(inputs, 1):
+        typer.echo(f"[{i}/{n}] {path.name} ... ", nl=False)
         try:
-            doc = pipeline.process_file(pdf)
+            doc = pipeline.process_file(path)
             results.append(doc)
             in_unsorted = "_unsorted" in str(doc.library_path)
             if in_unsorted:

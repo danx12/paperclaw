@@ -149,3 +149,33 @@ def test_unsorted_name_includes_hash(tmp_path: Path) -> None:
     assert lib_doc.canonical_name.startswith("my-doc_")
     assert lib_doc.canonical_name.endswith(".pdf")
     assert len(lib_doc.canonical_name) == len("my-doc_") + 8 + len(".pdf")
+
+
+def test_stores_png_preserves_suffix(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    storer = FilesystemStorer(library)
+    classified = _classified(
+        tmp_path,
+        filename="scan.png",
+        content=b"\x89PNG\r\n\x1a\nstub",
+        doc_type=DocumentType.INVOICE,
+        date=datetime.date(2024, 11, 1),
+        vendor="Acme",
+        reference="INV-1",
+    )
+    lib_doc = storer.store(classified)
+
+    assert lib_doc.library_path.suffix == ".png"
+    assert lib_doc.canonical_name.endswith(".png")
+
+
+def test_unsorted_png_preserves_suffix(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    storer = FilesystemStorer(library)
+    classified = _classified(
+        tmp_path, filename="scan.png", content=b"\x89PNG\r\n\x1a\nstub"
+    )
+    lib_doc = storer.store(classified, unsorted=True)
+
+    assert lib_doc.library_path.suffix == ".png"
+    assert lib_doc.canonical_name.endswith(".png")

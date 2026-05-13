@@ -23,4 +23,5 @@ def canonical_name(doc: ClassifiedDocument) -> str:
     type_str = str(doc.doc_type)
     vendor_str = slugify(doc.vendor or "", fallback="unknown")
     ref_str = slugify(doc.reference or "", fallback="noref")
-    return f"{date_str}_{type_str}_{vendor_str}_{ref_str}.pdf"
+    suffix = doc.raw.source_path.suffix.lower() or ".pdf"
+    return f"{date_str}_{type_str}_{vendor_str}_{ref_str}{suffix}"

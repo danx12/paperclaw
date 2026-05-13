@@ -170,3 +170,58 @@ class TestClaudeClassifier:
             doc = clf.classify(_raw(tmp_path, text="text"))
 
         assert doc.confidence == pytest.approx(0.5)
+
+    def test_vision_path_for_image_only_pdf(self, tmp_path: Path) -> None:
+        clf = ClaudeClassifier(api_key="sk-test")
+        raw = _raw(tmp_path, filename="scan.pdf", text="")
+        data = {
+            "extracted_text": "INVOICE\nAcme GmbH\nTotal 99 EUR",
+            "doc_type": "invoice",
+            "date": "2024-11-01",
+            "vendor": "Acme GmbH",
+            "amount": 99.0,
+            "currency": "EUR",
+            "reference": "INV-9912",
+            "confidence": 0.9,
+        }
+        with patch.object(
+            clf._client.messages, "create", return_value=_mock_response(data)
+        ) as mock:
+            doc = clf.classify(raw)
+
+        kwargs = mock.call_args.kwargs
+        content = kwargs["messages"][0]["content"]
+        assert content[0]["type"] == "document"
+        assert content[0]["source"]["media_type"] == "application/pdf"
+        assert content[0]["source"]["type"] == "base64"
+        assert doc.doc_type == DocumentType.INVOICE
+        assert doc.vendor == "Acme GmbH"
+        assert "INVOICE" in doc.raw.text
+
+    def test_vision_path_for_png(self, tmp_path: Path) -> None:
+        clf = ClaudeClassifier(api_key="sk-test")
+        png = tmp_path / "receipt.png"
+        png.write_bytes(b"\x89PNG\r\n\x1a\nstub")
+        raw = RawDocument(
+            source_path=png, filename="receipt.png", size_bytes=4, text=""
+        )
+        data = {
+            "extracted_text": "Receipt body",
+            "doc_type": "bill",
+            "date": None,
+            "vendor": "Stadtwerke",
+            "amount": None,
+            "currency": None,
+            "reference": None,
+            "confidence": 0.8,
+        }
+        with patch.object(
+            clf._client.messages, "create", return_value=_mock_response(data)
+        ) as mock:
+            doc = clf.classify(raw)
+
+        content = mock.call_args.kwargs["messages"][0]["content"]
+        assert content[0]["type"] == "image"
+        assert content[0]["source"]["media_type"] == "image/png"
+        assert doc.doc_type == DocumentType.BILL
+        assert doc.raw.text == "Receipt body"

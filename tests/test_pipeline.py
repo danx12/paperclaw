@@ -128,6 +128,30 @@ def test_empty_text_routes_unsorted(tmp_path: Path) -> None:
     assert storer.calls[0][1] is True
 
 
+def test_png_discovered(tmp_path: Path) -> None:
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    (inbox / "scan.png").write_bytes(b"\x89PNG\r\n\x1a\nstub")
+
+    pipeline, storer = _pipeline(tmp_path, text="", local_conf=0.0)
+    pipeline.run(inbox)
+
+    assert len(storer.calls) == 1
+    assert storer.calls[0][0].raw.filename == "scan.png"
+    assert storer.calls[0][1] is True
+
+
+def test_empty_text_with_claude_routes_via_claude(tmp_path: Path) -> None:
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    _pdf(inbox / "scan.pdf")
+
+    pipeline, storer = _pipeline(tmp_path, text="", local_conf=0.0, claude_conf=0.85)
+    pipeline.run(inbox)
+
+    assert storer.calls[0][1] is False
+
+
 def test_claude_high_confidence_stores_directly(tmp_path: Path) -> None:
     inbox = tmp_path / "inbox"
     inbox.mkdir()

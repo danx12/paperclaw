@@ -38,3 +38,12 @@ def test_text_is_string(extractor: PdfPlumberExtractor) -> None:
 def test_missing_file_raises(extractor: PdfPlumberExtractor, tmp_path: Path) -> None:
     with pytest.raises(Exception):
         extractor.extract(tmp_path / "nonexistent.pdf")
+
+
+def test_png_short_circuits(extractor: PdfPlumberExtractor, tmp_path: Path) -> None:
+    png = tmp_path / "scan.png"
+    png.write_bytes(b"\x89PNG\r\n\x1a\nstub")
+    raw = extractor.extract(png)
+    assert raw.text == ""
+    assert raw.filename == "scan.png"
+    assert raw.size_bytes == png.stat().st_size

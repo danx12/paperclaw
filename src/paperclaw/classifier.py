@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import datetime
 import json
 import logging
@@ -36,6 +37,26 @@ Document text:
 
 Return only valid JSON, no explanation."""
 
+_VISION_USER = """\
+This is a scanned or image-only document. Perform OCR and classify it.
+Return a JSON object with exactly these fields:
+- extracted_text: the full text content of the document, preserving line breaks
+- doc_type: one of "invoice", "bill", "contract", "bank_statement",
+  "tax", "insurance", "letter", "other"
+- date: "YYYY-MM-DD" or null
+- vendor: string or null
+- amount: number or null
+- currency: ISO 4217 3-letter code or null
+- reference: string or null
+- confidence: number between 0.0 and 1.0
+
+Return only valid JSON, no explanation."""
+
+_MEDIA_TYPES: dict[str, str] = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+}
+
 
 class LocalRulesClassifier:
     def classify(self, raw: RawDocument) -> ClassifiedDocument:
@@ -60,7 +81,7 @@ class LocalRulesClassifier:
 def _extract_json(text: str) -> dict[str, object]:
     """Parse JSON from response, stripping markdown code fences if present."""
     text = text.strip()
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     if match:
         text = match.group(1)
     return json.loads(text)  # type: ignore[no-any-return]
@@ -72,13 +93,13 @@ class ClaudeClassifier:
         self._model = model
 
     def classify(self, raw: RawDocument) -> ClassifiedDocument:
-        prompt = _CLASSIFY_USER.format(text=raw.text[:8000])
-        msg = self._client.messages.create(
-            model=self._model,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        data = _extract_json(msg.content[0].text)  # type: ignore[union-attr]
+        if raw.text.strip():
+            data = self._classify_text(raw.text)
+            ocr_text: str | None = None
+        else:
+            data, ocr_text = self._classify_vision(raw)
+            if ocr_text:
+                raw = raw.model_copy(update={"text": ocr_text})
 
         date: datetime.date | None = None
         raw_date = data.get("date")
@@ -104,3 +125,48 @@ class ClaudeClassifier:
             reference=str(data["reference"]) if data.get("reference") else None,
             confidence=float(data.get("confidence", 0.5)),  # type: ignore[arg-type]
         )
+
+    def _classify_text(self, text: str) -> dict[str, object]:
+        prompt = _CLASSIFY_USER.format(text=text[:8000])
+        msg = self._client.messages.create(
+            model=self._model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return _extract_json(msg.content[0].text)  # type: ignore[union-attr]
+
+    def _classify_vision(
+        self, raw: RawDocument
+    ) -> tuple[dict[str, object], str | None]:
+        suffix = raw.source_path.suffix.lower()
+        media_type = _MEDIA_TYPES.get(suffix)
+        if media_type is None:
+            raise ValueError(f"Unsupported file type for vision OCR: {suffix}")
+
+        data_b64 = base64.standard_b64encode(raw.source_path.read_bytes()).decode(
+            "ascii"
+        )
+        block_type = "image" if media_type.startswith("image/") else "document"
+        msg = self._client.messages.create(
+            model=self._model,
+            max_tokens=16000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": block_type,
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": data_b64,
+                            },
+                        },
+                        {"type": "text", "text": _VISION_USER},
+                    ],
+                }
+            ],
+        )
+        data = _extract_json(msg.content[0].text)  # type: ignore[union-attr]
+        ocr_text = data.pop("extracted_text", None)
+        return data, str(ocr_text) if ocr_text else None

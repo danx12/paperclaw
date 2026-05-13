@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from itertools import chain
 from pathlib import Path
 
 from paperclaw.protocols import Classifier, Extractor, Storer
@@ -12,6 +13,12 @@ from paperclaw.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+SUPPORTED_GLOBS = ("*.pdf", "*.png")
+
+
+def iter_inputs(inbox: Path) -> list[Path]:
+    return sorted(chain.from_iterable(inbox.glob(p) for p in SUPPORTED_GLOBS))
 
 
 class Pipeline:
@@ -33,22 +40,22 @@ class Pipeline:
 
     def run(self, inbox: Path) -> list[LibraryDocument]:
         results: list[LibraryDocument] = []
-        for pdf in sorted(inbox.glob("*.pdf")):
+        for path in iter_inputs(inbox):
             try:
-                results.append(self.process_file(pdf))
+                results.append(self.process_file(path))
             except Exception as exc:
-                logger.error("Unhandled error processing %s: %s", pdf.name, exc)
+                logger.error("Unhandled error processing %s: %s", path.name, exc)
         return results
 
-    def process_file(self, pdf: Path) -> LibraryDocument:
+    def process_file(self, path: Path) -> LibraryDocument:
         try:
-            raw = self._extractor.extract(pdf)
+            raw = self._extractor.extract(path)
         except Exception as exc:
-            logger.error("Extraction failed for %s: %s", pdf.name, exc)
+            logger.error("Extraction failed for %s: %s", path.name, exc)
             raw = RawDocument(
-                source_path=pdf,
-                filename=pdf.name,
-                size_bytes=pdf.stat().st_size,
+                source_path=path,
+                filename=path.name,
+                size_bytes=path.stat().st_size,
                 text="",
             )
             fallback = ClassifiedDocument(
@@ -56,21 +63,22 @@ class Pipeline:
             )
             return self._storer.store(fallback, unsorted=True)
 
-        if not raw.text.strip():
-            classified = self._local.classify(raw)
-            return self._storer.store(classified, unsorted=True)
-
         if self._claude is not None:
             try:
                 result = self._claude.classify(raw)
             except Exception as exc:
-                logger.warning("Claude classification failed for %s: %s", pdf.name, exc)
+                logger.warning(
+                    "Claude classification failed for %s: %s", path.name, exc
+                )
                 result = self._local.classify(raw)
                 return self._storer.store(result, unsorted=True)
 
             if result.confidence >= self._claude_min:
                 return self._storer.store(result)
             return self._storer.store(result, unsorted=True)
+
+        if not raw.text.strip():
+            return self._storer.store(self._local.classify(raw), unsorted=True)
 
         classified = self._local.classify(raw)
         if classified.confidence >= self._threshold:
