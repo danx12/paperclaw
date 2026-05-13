@@ -1,6 +1,12 @@
 repos:
   - repo: local
     hooks:
+      - id: no-env-files
+        name: Block .env files
+        language: fail
+        entry: "Refusing to commit .env files — store secrets in env vars or config.toml"
+        files: '(^|/)\.env(\.|$)'
+
       - id: ruff-check
         name: ruff lint + autofix
         language: system
