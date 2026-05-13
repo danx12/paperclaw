@@ -260,6 +260,64 @@ def test_claude_failure_falls_back_to_unsorted(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
+def test_integration_png_routes_to_unsorted(tmp_path: Path) -> None:
+    """Real PNG files have no extractable text and must land in _unsorted/."""
+    pngs = sorted(DATA_DIR.glob("*.png"))
+    assert pngs, "No PNG files found in tests/data/"
+    png = pngs[0]
+
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    shutil.copy(png, inbox / png.name)
+    library = tmp_path / "library"
+
+    pipeline = Pipeline(
+        extractor=PdfPlumberExtractor(),
+        local_classifier=LocalRulesClassifier(),
+        storer=FilesystemStorer(library),
+        threshold=0.75,
+    )
+    results = pipeline.run(inbox)
+
+    assert len(results) == 1
+    doc = results[0]
+    assert "_unsorted" in str(doc.library_path)
+    assert doc.library_path.suffix == ".png"
+    assert doc.transcript_path.suffix == ".md"
+    assert doc.library_path.exists()
+    assert doc.transcript_path.exists()
+
+
+@pytest.mark.integration
+def test_integration_png_sidecar_readable_by_library_index(tmp_path: Path) -> None:
+    """After ingestion, LibraryIndex can parse the PNG sidecar and returns correct metadata."""
+    from paperclaw.library_index import LibraryIndex
+
+    pngs = sorted(DATA_DIR.glob("*.png"))
+    assert pngs, "No PNG files found in tests/data/"
+    png = pngs[0]
+
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    shutil.copy(png, inbox / png.name)
+    library = tmp_path / "library"
+
+    Pipeline(
+        extractor=PdfPlumberExtractor(),
+        local_classifier=LocalRulesClassifier(),
+        storer=FilesystemStorer(library),
+        threshold=0.75,
+    ).run(inbox)
+
+    idx = LibraryIndex.load(library)
+    assert len(idx) == 1
+    entry = next(iter(idx))
+    assert entry.canonical_name.endswith(".png")
+    assert entry.unsorted is True
+    assert entry.doc_type is not None
+
+
+@pytest.mark.integration
 def test_integration_stromrechnung(tmp_path: Path) -> None:
     inbox = tmp_path / "inbox"
     inbox.mkdir()

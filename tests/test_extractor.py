@@ -47,3 +47,15 @@ def test_png_short_circuits(extractor: PdfPlumberExtractor, tmp_path: Path) -> N
     assert raw.text == ""
     assert raw.filename == "scan.png"
     assert raw.size_bytes == png.stat().st_size
+
+
+def test_real_png_returns_empty_text(extractor: PdfPlumberExtractor) -> None:
+    """Real PNGs from tests/data produce empty text (no OCR)."""
+    pngs = sorted(DATA_DIR.glob("*.png"))
+    assert pngs, "No PNG files found in tests/data/ — add at least one"
+    for png in pngs:
+        raw = extractor.extract(png)
+        assert raw.text == "", f"{png.name} should have empty text"
+        assert raw.filename == png.name
+        assert raw.size_bytes == png.stat().st_size
+        assert raw.source_path == png
