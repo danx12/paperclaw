@@ -8,14 +8,15 @@ import typer
 from dotenv import load_dotenv
 
 app = typer.Typer(
-    help="Turn a folder of PDFs into an organized, agent-searchable library."
+    help="Turn a folder of PDFs into an organized, agent-searchable library.",
+    no_args_is_help=True,
 )
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
 
-@app.command()
-def main(
+@app.command("ingest")
+def ingest(
     inbox: Annotated[
         Path | None, typer.Option(help="Directory scanned for *.pdf and *.png.")
     ] = None,
@@ -41,7 +42,7 @@ def main(
         Path | None, typer.Option(help="Path to a TOML config file.")
     ] = None,
 ) -> None:
-    """Process all PDFs in the inbox and store them in the library."""
+    """Process all PDFs and PNGs in the inbox and store them in the library."""
     load_dotenv()
 
     from paperclaw._config import load_settings
@@ -103,3 +104,126 @@ def main(
             typer.secho(f"ERROR: {exc}", fg=typer.colors.RED, err=True)
 
     typer.echo(f"\nDone. {len(results)}/{n} file(s) processed → {settings.library}")
+
+
+@app.command("chat")
+def chat(
+    library: Annotated[
+        Path | None,
+        typer.Option(help="Library root containing classified PDFs and sidecars."),
+    ] = None,
+    chat_model: Annotated[
+        str | None,
+        typer.Option(help="Claude model ID for chat (separate from --model)."),
+    ] = None,
+    api_key: Annotated[
+        str | None,
+        typer.Option(help="Anthropic API key (prefer ANTHROPIC_API_KEY env var)."),
+    ] = None,
+    config: Annotated[
+        Path | None, typer.Option(help="Path to a TOML config file.")
+    ] = None,
+    no_inline_metadata: Annotated[
+        bool,
+        typer.Option(
+            "--no-inline-metadata",
+            help="Always paginate via tools, even when the metadata index would fit.",
+        ),
+    ] = False,
+    question: Annotated[
+        str | None,
+        typer.Option(
+            "--ask",
+            help="Ask one question and exit, instead of starting the REPL.",
+        ),
+    ] = None,
+) -> None:
+    """Chat with your library. Loads sidecar metadata and exposes 4 search tools."""
+    load_dotenv()
+
+    from paperclaw._config import load_settings
+    from paperclaw.chat import ChatSession
+    from paperclaw.library_index import LibraryIndex
+
+    settings = load_settings(
+        config_path=config,
+        library=library,
+        api_key=api_key,
+        chat_model=chat_model,
+    )
+    if not settings.api_key:
+        typer.secho(
+            "Chat requires an Anthropic API key (set ANTHROPIC_API_KEY or --api-key).",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    if not settings.library.exists():
+        typer.secho(
+            f"Library directory {settings.library} does not exist.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    index = LibraryIndex.load(settings.library)
+    if len(index) == 0:
+        typer.secho(
+            f"No sidecars found under {settings.library}. "
+            "Run `paperclaw ingest` first to populate the library.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    session = ChatSession(
+        index=index,
+        api_key=settings.api_key,
+        model=settings.chat_model,
+        inline_metadata=not no_inline_metadata,
+    )
+
+    inline_state = "inlined" if session.metadata_inlined() else "paginated via tools"
+    typer.secho(
+        f"PaperClaw chat [{settings.chat_model}] over {settings.library} "
+        f"— {len(index)} document(s), metadata {inline_state}.",
+        fg=typer.colors.GREEN,
+    )
+
+    if question is not None:
+        reply = session.ask(question)
+        typer.echo(reply)
+        _print_usage(session)
+        return
+
+    typer.echo("Type your question, or /usage, /quit.\n")
+    while True:
+        try:
+            line = input("you> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            typer.echo()
+            break
+        if not line:
+            continue
+        if line in ("/quit", "/exit", ":q"):
+            break
+        if line == "/usage":
+            _print_usage(session)
+            continue
+        try:
+            reply = session.ask(line)
+        except Exception as exc:  # noqa: BLE001
+            typer.secho(f"ERROR: {exc}", fg=typer.colors.RED, err=True)
+            continue
+        typer.secho(f"\nclaude> {reply}\n", fg=typer.colors.CYAN)
+
+
+def _print_usage(session: object) -> None:
+    summary = session.usage_summary  # type: ignore[attr-defined]
+    typer.echo(
+        f"[usage] input={summary['input_tokens']} "
+        f"output={summary['output_tokens']} "
+        f"cache_read={summary['cache_read_input_tokens']} "
+        f"cache_write={summary['cache_creation_input_tokens']}"
+    )

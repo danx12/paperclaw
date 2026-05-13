@@ -23,4 +23,4 @@ default = { features = ["dev"], solve-group = "default" }
 test = "pytest"
 lint = "ruff check src/ tests/"
 fmt  = "black src/ tests/"
-demo = { cmd = "python -c \"\nimport shutil\nfrom pathlib import Path\nroot  = Path('/tmp/paperclaw-demo')\ninbox = root / 'inbox'\nlib   = root / 'library'\nif root.exists():\n    shutil.rmtree(root)\ninbox.mkdir(parents=True)\nlib.mkdir(parents=True)\ndata = Path('tests/data')\nfor pdf in data.glob('*.pdf'):\n    shutil.copy(pdf, inbox / pdf.name)\nprint(f'Inbox ready: {inbox}')\nprint(f'Library:     {lib}')\nprint()\nprint('Run:')\nprint(f'  paperclaw --inbox {inbox} --library {lib}')\n\"" }
+demo = { cmd = "python -c \"\nimport shutil\nfrom pathlib import Path\nroot  = Path('/tmp/paperclaw-demo')\ninbox = root / 'inbox'\nlib   = root / 'library'\nif root.exists():\n    shutil.rmtree(root)\ninbox.mkdir(parents=True)\nlib.mkdir(parents=True)\ndata = Path('tests/data')\nfor pat in ('*.pdf', '*.png'):\n    for f in data.glob(pat):\n        shutil.copy(f, inbox / f.name)\nprint(f'Inbox ready: {inbox}')\nprint(f'Library:     {lib}')\nprint()\nprint('Run:')\nprint(f'  paperclaw ingest --inbox {inbox} --library {lib}')\n\"" }

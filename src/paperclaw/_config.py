@@ -13,6 +13,7 @@ class Settings(BaseModel):
 
     api_key: str | None = None
     model: str = "claude-haiku-4-5-20251001"
+    chat_model: str = "claude-sonnet-4-6"
     threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     claude_min: float = Field(default=0.50, ge=0.0, le=1.0)
     inbox: Path = Field(default_factory=lambda: Path.home() / "inbox")
@@ -22,6 +23,7 @@ class Settings(BaseModel):
 _ENV_MAP: dict[str, str] = {
     "ANTHROPIC_API_KEY": "api_key",
     "PAPERCLAW_MODEL": "model",
+    "PAPERCLAW_CHAT_MODEL": "chat_model",
     "PAPERCLAW_THRESHOLD": "threshold",
     "PAPERCLAW_CLAUDE_MIN": "claude_min",
     "PAPERCLAW_INBOX": "inbox",
