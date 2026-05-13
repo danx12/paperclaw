@@ -7,10 +7,10 @@ A document-management CLI that classifies PDFs, renames them with a canonical co
 ```
 ~/inbox/*.pdf
     → extract text (pdfplumber)
-    → local rules classify (filename regex + content keywords)
-    → if confidence ≥ 0.75: store as YYYY-MM-DD_type_vendor_ref.pdf
-    → if confidence < 0.75 and API key set: Claude classifies
-    → low-confidence or image-only → ~/library/_unsorted/
+    → if API key set: Claude classifies + extracts metadata (date, vendor, amount, ref)
+    → if no API key: local rules classify (filename regex + content keywords)
+    → confidence ≥ 0.50 (Claude) or ≥ 0.75 (local) → ~/library/YYYY-MM-DD_type_vendor_ref.pdf
+    → low confidence or image-only → ~/library/_unsorted/
 ```
 
 Each stored PDF gets a `.md` sidecar with structured metadata and the full extracted text, making the library grep-able and semantically searchable.
@@ -33,21 +33,17 @@ pixi run demo
 # → Inbox ready: /tmp/paperclaw-demo/inbox
 # → Library:     /tmp/paperclaw-demo/library
 
-# 2. Run PaperClaw on it (no API key needed — local rules handle everything)
+# 2. Run with an Anthropic key — Claude extracts full metadata
+ANTHROPIC_API_KEY=sk-... paperclaw --inbox /tmp/paperclaw-demo/inbox --library /tmp/paperclaw-demo/library
+# → Found 2 PDF(s) in /tmp/paperclaw-demo/inbox. [Claude (claude-haiku-4-5-20251001)]
+# → [1/2] finanzamt-bescheid.pdf ...      stored → 2026-04-28_tax_finanzamt-m-nchen_V-EKST-2025.pdf
+# → [2/2] stadtwerke-stromrechnung.pdf ... stored → 2026-04-12_bill_stadtwerke-m-nchen-gmbh_R-118442.pdf
+
+# Without a key, local rules classify type only (vendor/date stay unknown)
 paperclaw --inbox /tmp/paperclaw-demo/inbox --library /tmp/paperclaw-demo/library
-# → Processed 2 file(s).
-# →   0000-00-00_tax_unknown_noref.pdf
-# →   0000-00-00_bill_unknown_noref.pdf
-
-# Check the library
-ls /tmp/paperclaw-demo/library/
-cat "/tmp/paperclaw-demo/library/0000-00-00_bill_unknown_noref.md"
-```
-
-With an Anthropic key, low-confidence documents are escalated to Claude, which fills in date, vendor, amount, and reference:
-
-```bash
-ANTHROPIC_API_KEY=sk-... paperclaw --inbox ~/scans --library ~/library
+# → Found 2 PDF(s) in /tmp/paperclaw-demo/inbox. [local rules only]
+# → [1/2] finanzamt-bescheid.pdf ...      stored → 0000-00-00_tax_unknown_noref.pdf
+# → [2/2] stadtwerke-stromrechnung.pdf ... stored → 0000-00-00_bill_unknown_noref.pdf
 ```
 
 Re-run `pixi run demo` to reset the inbox before each trial (PDFs are moved, not copied).
@@ -59,7 +55,7 @@ Settings resolve in priority order: **CLI flag > env var > config file > default
 | Parameter | CLI flag | Env var | Default |
 |---|---|---|---|
 | API key | `--api-key` | `ANTHROPIC_API_KEY` | *(optional)* |
-| Model | `--model` | `PAPERCLAW_MODEL` | `claude-sonnet-4-6` |
+| Model | `--model` | `PAPERCLAW_MODEL` | `claude-haiku-4-5-20251001` |
 | Local threshold | `--threshold` | `PAPERCLAW_THRESHOLD` | `0.75` |
 | Claude min confidence | `--claude-min` | `PAPERCLAW_CLAUDE_MIN` | `0.50` |
 | Inbox | `--inbox` | `PAPERCLAW_INBOX` | `~/inbox` |
@@ -69,7 +65,7 @@ Settings resolve in priority order: **CLI flag > env var > config file > default
 **Example `~/.config/paperclaw/config.toml`:**
 
 ```toml
-model = "claude-sonnet-4-6"
+model = "claude-haiku-4-5-20251001"
 threshold = 0.75
 claude_min = 0.50
 inbox = "/Users/me/Documents/scans"
@@ -79,18 +75,55 @@ library = "/Users/me/Documents/library"
 
 ## Output format
 
-Classified PDFs land in `~/library/` under a canonical name:
+### Canonical filename
+
+Classified PDFs land in `~/library/` under a four-part name:
 
 ```
-YYYY-MM-DD_type_vendor-slug_ref-slug.pdf
+YYYY-MM-DD _ <type> _ <vendor-slug> _ <ref-slug> .pdf
 ```
 
-| Scenario | Example |
+Each part is separated by `_`. The vendor and reference segments are **slugified**:
+- lowercased
+- runs of non-alphanumeric characters replaced by `-`
+- leading/trailing `-` trimmed
+- truncated to 40 characters
+
+**Fallback values when a field is missing:**
+
+| Field | Fallback |
+|---|---|
+| date | `0000-00-00` |
+| vendor | `unknown` |
+| reference | `noref` |
+
+**Document types:** `invoice`, `bill`, `contract`, `bank_statement`, `tax`, `insurance`, `letter`, `other`
+
+**Examples:**
+
+| Scenario | Filename |
 |---|---|
 | Full metadata | `2024-11-01_invoice_acme-gmbh_INV-9912.pdf` |
 | No date | `0000-00-00_invoice_acme-gmbh_INV-9912.pdf` |
 | No reference | `2025-03-15_bill_vattenfall_noref.pdf` |
+| No vendor | `2025-01-10_tax_unknown_noref.pdf` |
 | Low confidence / image-only | `_unsorted/original-name_a1b2c3d4.pdf` |
+
+**Collision handling.** If the target filename already exists, an 8-character SHA-256 content hash of the source file is appended:
+
+```
+2024-11-01_invoice_acme-gmbh_INV-9912_a1b2c3d4.pdf
+```
+
+Because the hash is derived from file content, re-running the same inbox is idempotent — the same file always maps to the same output name.
+
+**Unsorted files** (`_unsorted/`) always include the hash (no collision check needed):
+
+```
+_unsorted/<original-stem>_<hash8>.pdf
+```
+
+### Sidecar
 
 A `.md` sidecar with the same stem is written alongside every PDF:
 
