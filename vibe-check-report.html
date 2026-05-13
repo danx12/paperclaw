@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vibe Check — paperclaw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --amber: #DA7756;
+    --amber-light: #E8956F;
+    --amber-dim: #C4623E;
+    --bg: #0D0F11;
+    --surface: #1E2227;
+    --elevated: #252A30;
+    --text: #E8E4DF;
+    --stone: #9B9690;
+    --muted: #6B6660;
+    --green: #7EC699;
+    --blue: #6BA3BE;
+    --red: #E06C75;
+    --purple: #B48EAD;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 300; line-height: 1.7; }
+  body { padding: 48px 24px 96px; max-width: 980px; margin: 0 auto; }
+  a { color: var(--amber); }
+  h1, h2, h3 { font-weight: 700; letter-spacing: -1.5px; margin: 0 0 12px; }
+  h1 { font-size: 40px; letter-spacing: -2px; }
+  h2 { font-size: 22px; letter-spacing: -1px; margin-top: 48px; }
+  h3 { font-size: 16px; letter-spacing: 0; font-weight: 600; }
+  .caption { font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .prompt::before { content: "$ "; color: var(--green); }
+
+  header { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: center; padding-bottom: 32px; border-bottom: 1px solid var(--elevated); }
+  header .meta { font-size: 13px; color: var(--stone); }
+  header .meta b { color: var(--text); font-weight: 500; }
+
+  .gauge { --pct: 50; width: 160px; height: 160px; border-radius: 50%; background: conic-gradient(var(--amber) calc(var(--pct) * 1%), var(--elevated) 0); display: grid; place-items: center; position: relative; animation: spin 1.2s ease-out; }
+  .gauge::before { content: ""; position: absolute; inset: 12px; border-radius: 50%; background: var(--bg); }
+  .gauge .num { position: relative; font-size: 38px; font-weight: 700; letter-spacing: -2px; }
+  .gauge .num small { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  @keyframes spin { from { background: conic-gradient(var(--amber) 0%, var(--elevated) 0); } }
+
+  .tldr { background: var(--surface); border-left: 3px solid var(--amber); padding: 24px 28px; margin: 32px 0; border-radius: 4px; }
+  .tldr .row { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 6px 0; font-size: 14px; }
+  .tldr .row .k { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; align-self: center; }
+  .tldr .row .v { color: var(--text); }
+  .tldr .verdict { color: var(--amber-light); font-weight: 500; font-size: 16px; }
+
+  .categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0 32px; }
+  .cat { background: var(--surface); padding: 20px; border-radius: 4px; border: 1px solid var(--elevated); }
+  .cat .icon { font-size: 24px; margin-bottom: 8px; }
+  .cat .title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .cat .score { font-size: 11px; color: var(--muted); margin: 4px 0 10px; letter-spacing: 1px; }
+  .cat .badge { display: inline-block; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 10px; border-radius: 99px; }
+  .cat .badge.earned { background: rgba(218, 119, 86, 0.15); color: var(--amber-light); border: 1px solid var(--amber-dim); }
+  .cat .badge.locked { background: var(--elevated); color: var(--muted); border: 1px solid var(--elevated); }
+
+  .items { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  details.item { background: var(--surface); border-radius: 4px; border: 1px solid var(--elevated); overflow: hidden; }
+  details.item[data-vibe="bad"] { border-left: 3px solid var(--red); }
+  details.item[data-vibe="warn"] { border-left: 3px solid var(--purple); }
+  details.item[data-vibe="ok"] { border-left: 3px solid var(--blue); }
+  details.item[data-vibe="great"] { border-left: 3px solid var(--green); }
+  details.item[data-vibe="na"] { border-left: 3px solid var(--muted); opacity: 0.7; }
+  summary { padding: 14px 20px; cursor: pointer; list-style: none; display: grid; grid-template-columns: 32px 1fr auto; gap: 16px; align-items: center; font-size: 14px; }
+  summary::-webkit-details-marker { display: none; }
+  summary .n { color: var(--muted); font-size: 11px; font-weight: 500; }
+  summary .name { color: var(--text); font-weight: 400; }
+  summary .vibe { font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--stone); }
+  .item .body { padding: 0 20px 20px 68px; font-size: 13px; color: var(--stone); }
+  .item .body .evidence { color: var(--stone); margin-bottom: 12px; }
+  .item .body code, .item .body pre { background: var(--bg); color: var(--text); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  .item .body pre { padding: 12px 16px; overflow-x: auto; margin: 8px 0; }
+  .item .body .fix { background: var(--bg); border-left: 2px solid var(--amber); padding: 10px 14px; margin: 8px 0; font-size: 12px; color: var(--text); }
+  .item .body .fix b { color: var(--amber); font-weight: 500; }
+
+  .bonus { margin-top: 32px; padding: 20px 24px; background: var(--surface); border: 1px dashed var(--amber-dim); border-radius: 4px; }
+  .bonus h3 { color: var(--amber); margin-bottom: 12px; }
+  .bonus ul { margin: 0; padding-left: 20px; font-size: 13px; color: var(--stone); }
+  .bonus li { padding: 4px 0; }
+  .bonus li b { color: var(--text); font-weight: 500; }
+
+  .pioneer { position: fixed; top: 24px; right: 24px; transform: rotate(8deg); background: var(--amber); color: var(--bg); padding: 10px 16px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 4px 20px rgba(218, 119, 86, 0.35); }
+
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--elevated); font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div class="pioneer">Vibe Pioneer</div>
+
+<header>
+  <div>
+    <div class="caption prompt">bettervibe agentic engineering vibe check</div>
+    <h1>paperclaw</h1>
+    <div class="meta">
+      <b>Python</b> · pixi · ruff · black · pytest · prek · pydantic · typer · pdfplumber · anthropic
+    </div>
+  </div>
+  <div class="gauge">
+    <div class="num">50<small>/100</small></div>
+  </div>
+</header>
+
+<section class="tldr">
+  <div class="row"><div class="k">Verdict</div><div class="v verdict">Works for now. Drink some water before the agent gets ambitious.</div></div>
+  <div class="row"><div class="k">Biggest win</div><div class="v">Business logic separated from I/O — typing.Protocol seams + frozen pydantic models make the pipeline testable without mocking the network or filesystem.</div></div>
+  <div class="row"><div class="k">Biggest miss</div><div class="v">No AGENTS.md / CLAUDE.md — a fresh agent must derive everything from README and pixi.toml.</div></div>
+  <div class="row"><div class="k">Do this now</div><div class="v">Add <code>AGENTS.md</code> at the repo root with: <code>pixi install</code>, <code>pixi run test</code>, <code>pixi run lint &amp;&amp; pixi run fmt</code>, and the self-test path <code>pixi run demo</code> → <code>paperclaw --inbox … --library …</code>.</div></div>
+  <div class="row"><div class="k">Bonuses</div><div class="v">2 earned 🎁🎁</div></div>
+</section>
+
+<h2>Category badges</h2>
+<div class="categories">
+  <div class="cat">
+    <div class="icon">🧱</div>
+    <div class="title">Foundations</div>
+    <div class="score">33 / 40</div>
+    <span class="badge earned">🛡️ Type-Safe Citizen</span>
+  </div>
+  <div class="cat">
+    <div class="icon">⚡</div>
+    <div class="title">Feedback Loops</div>
+    <div class="score">30 / 50</div>
+    <span class="badge locked">🚦 Loop Closer</span>
+  </div>
+  <div class="cat">
+    <div class="icon">🤖</div>
+    <div class="title">Agent Enablement</div>
+    <div class="score">7 / 40</div>
+    <span class="badge locked">🔍 Agent-Ready</span>
+  </div>
+  <div class="cat">
+    <div class="icon">🚨</div>
+    <div class="title">Blast-Radius Safety</div>
+    <div class="score">0 / 10</div>
+    <span class="badge locked">🛟 Blast-Radius Aware</span>
+  </div>
+</div>
+
+<h2>Findings</h2>
+<div class="items">
+
+  <details class="item" data-vibe="bad" open>
+    <summary>
+      <span class="n">01</span>
+      <span class="name">AGENTS.md / CLAUDE.md</span>
+      <span class="vibe">💀 Broken</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">Neither <code>AGENTS.md</code> nor <code>CLAUDE.md</code> exists at the repo root. The only agent-adjacent file is <code>.claude/skills/python-coding.md</code>, a generic Python style skill — not project context.</div>
+      <div class="fix"><b>Fix:</b> create <code>AGENTS.md</code> with four sections: install (<code>pixi install</code>), test (<code>pixi run test</code>), self-test (<code>pixi run demo</code> → <code>paperclaw …</code>), and the Protocol seams in <code>src/paperclaw/protocols.py</code> the agent should respect.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="warn" open>
+    <summary>
+      <span class="n">02</span>
+      <span class="name">Strict types / compiler</span>
+      <span class="vibe">🩹 Patchy</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>pyproject.toml</code> has no <code>[tool.mypy]</code> or <code>[tool.pyright]</code> block. Ruff <code>ANN</code> is selected (pyproject.toml:30) so missing annotations fail lint, but no static type checker is wired into pre-commit or CI.</div>
+      <div class="fix"><b>Fix:</b> add <code>mypy</code> to <code>pixi.toml</code> dev deps, <code>[tool.mypy] strict = true</code> in pyproject, and a <code>pixi run typecheck</code> task wired into <code>.pre-commit-config.yaml</code>.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="great">
+    <summary>
+      <span class="n">03</span>
+      <span class="name">Strict linter / formatter</span>
+      <span class="vibe">🚀 Ship-Ready</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">pyproject.toml:30 selects <code>E, W, F, I, UP, B, SIM, ANN</code> — broad, not the starter set. Black is wired alongside. Both run in <code>.pre-commit-config.yaml</code>, and CI runs <code>prek run --all-files --show-diff-on-failure</code> so config is actually exercised.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="great">
+    <summary>
+      <span class="n">04</span>
+      <span class="name">Schema validation at boundaries</span>
+      <span class="vibe">🚀 Ship-Ready</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>src/paperclaw/schemas.py</code> defines <code>RawDocument</code>, <code>ClassifiedDocument</code>, <code>LibraryDocument</code> as frozen pydantic <code>BaseModel</code>s with <code>Field(ge=0.0, le=1.0)</code>, <code>max_length=3</code>, and a <code>@model_validator</code> that enforces <code>.md</code> sidecar suffix. Claude responses parse through the same schemas — the network boundary is typed.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="great">
+    <summary>
+      <span class="n">05</span>
+      <span class="name">Business logic separated from I/O</span>
+      <span class="vibe">🚀 Ship-Ready</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>src/paperclaw/protocols.py</code> declares <code>Extractor</code> / <code>Classifier</code> / <code>Storer</code> as <code>typing.Protocol</code>s. <code>pipeline.py</code> is pure orchestration over those seams. <code>_naming.py</code> is pure functions. <code>tests/test_pipeline.py</code> exercises the full flow with in-memory fakes — no network or filesystem mocks.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="great">
+    <summary>
+      <span class="n">06</span>
+      <span class="name">One-command bring-up</span>
+      <span class="vibe">🚀 Ship-Ready</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>pixi install</code> (README:21) followed by uniform verbs <code>pixi run test | lint | fmt | demo</code> (pixi.toml:22-26). Single-package layout — no per-folder special cases for the agent to discover.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="ok">
+    <summary>
+      <span class="n">07</span>
+      <span class="name">Pre-commit feedback loop</span>
+      <span class="vibe">👍 Solid</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>.pre-commit-config.yaml</code> runs ruff (autofix) + black + pytest (non-integration) + a custom <code>.env</code> file blocker. CI runs <code>prek run --all-files</code> so the hooks are genuinely exercised. Missing: gitleaks / detect-secrets — the <code>.env</code> filename pattern is the only secret guard.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="warn" open>
+    <summary>
+      <span class="n">08</span>
+      <span class="name">Dead-code guardrail</span>
+      <span class="vibe">🩹 Patchy</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">Ruff <code>F</code> (pyproject.toml:30) catches unused imports and unused local variables, but nothing catches unused functions, classes, or modules. No <code>vulture</code>, no <code>deadcode</code>, no <code>RUF</code>/<code>PLR</code> rules.</div>
+      <div class="fix"><b>Fix:</b> add <code>vulture</code> to dev deps and a <code>pixi run lint</code> step that runs <code>vulture src/ --min-confidence 80</code>, or add <code>"RUF"</code> to <code>tool.ruff.lint.select</code>.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="ok">
+    <summary>
+      <span class="n">09</span>
+      <span class="name">Logs reachable from terminal</span>
+      <span class="vibe">👍 Solid</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>logging.basicConfig(level=WARNING, …)</code> at <code>cli.py:14</code> plus <code>typer.echo</code> / <code>typer.secho</code> for status lines. Everything streams to stdout/stderr. No dedicated <code>pixi run logs</code> shortcut, but nothing is buried in a GUI.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="bad" open>
+    <summary>
+      <span class="n">10</span>
+      <span class="name">Docs stay in sync with code</span>
+      <span class="vibe">💀 Broken</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>README.md</code> and <code>docs/DESIGN.md</code> exist, but nothing flags code-only changes. No pre-commit hook, no CI rule, no generated reference. Agent can edit <code>schemas.py</code> and the README will silently drift.</div>
+      <div class="fix"><b>Fix:</b> add a local prek hook that fails when <code>src/**</code> changes in a commit without a touch to <code>README.md</code> or <code>docs/**</code>, with a named bypass (<code>PAPERCLAW_DOCS_OK=1</code>).</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="ok">
+    <summary>
+      <span class="n">11</span>
+      <span class="name">Agent self-test end-to-end</span>
+      <span class="vibe">👍 Solid</span>
+    </summary>
+    <div class="body">
+      <div class="evidence"><code>pixi run demo</code> (pixi.toml:26) scaffolds <code>/tmp/paperclaw-demo</code> with bundled PDFs and prints the exact <code>paperclaw …</code> command. CLI emits stored / unsorted status to stdout and writes inspectable <code>.md</code> sidecars an agent can grep. Discoverable from README, not yet from <code>AGENTS.md</code>.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="bad" open>
+    <summary>
+      <span class="n">12</span>
+      <span class="name">Agentic review panel</span>
+      <span class="vibe">💀 Broken</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">No <code>/review</code> slash command, no <code>REVIEW.md</code>, no script that spawns parallel specialist reviewers. CI is pre-commit + integration tests only. Human is the first reviewer of every diff.</div>
+      <div class="fix"><b>Fix:</b> add <code>.claude/commands/review.md</code> that fans out python / security / best-practices reviewers in parallel, plus a short <code>REVIEW.md</code> ignore list (style covered by ruff/black, theoretical risks in unchanged code) and a diff-size tier rule.</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="bad" open>
+    <summary>
+      <span class="n">13</span>
+      <span class="name">Friction proportional to blast radius</span>
+      <span class="vibe">💀 Broken</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">No <code>CODEOWNERS</code>, no pre-push danger-zone hook, no named bypass. The two highest-blast files — <code>src/paperclaw/_naming.py</code> (canonical filename touches every stored doc; renames break idempotency) and <code>src/paperclaw/classifier.py</code> (Claude prompt) — have no extra friction.</div>
+      <div class="fix"><b>Fix:</b> add a local prek hook that fails when those paths change without <code>PAPERCLAW_DANGER_OK=1</code> in the env, and print a one-liner about what must have been done first (regression test against bundled PDFs, downstream sidecar parity check).</div>
+    </div>
+  </details>
+
+  <details class="item" data-vibe="warn" open>
+    <summary>
+      <span class="n">14</span>
+      <span class="name">Tooling tuned for the agent</span>
+      <span class="vibe">🩹 Patchy</span>
+    </summary>
+    <div class="body">
+      <div class="evidence">The <code>no-env-files</code> hook (<code>.pre-commit-config.yaml:7</code>) prints a clear remediation: <i>"Refusing to commit .env files — store secrets in env vars or config.toml"</i>. The ruff / black / pytest hooks just exit non-zero with stock output — no "run <code>pixi run fmt</code>" hint, no accept-list for known-false-positives.</div>
+      <div class="fix"><b>Fix:</b> wrap each hook's <code>entry</code> in a small shell wrapper that, on failure, prints <code>"fix with: pixi run fmt"</code> / <code>"pixi run lint --fix"</code>. Add a <code>.gitleaksignore</code> (or similar accept-list) once gitleaks is wired so signal stays clean.</div>
+    </div>
+  </details>
+
+</div>
+
+<section class="bonus">
+  <h3>🎁 Bonus finds</h3>
+  <ul>
+    <li><b>🎁 <code>pixi run demo</code> bootstrap</b> (pixi.toml:26) — one command resets <code>/tmp/paperclaw-demo</code>, copies the bundled test PDFs into a fresh inbox, and prints the exact <code>paperclaw …</code> command to run next. The agent can verify a change end-to-end without inventing fixtures.</li>
+    <li><b>🎁 Protocol seams + frozen pydantic models</b> (<code>protocols.py</code>, <code>schemas.py</code>) — <code>Extractor</code> / <code>Classifier</code> / <code>Storer</code> are pure <code>typing.Protocol</code>s and every domain object is frozen pydantic with validators. The agent can swap a fake classifier or storer in tests without touching the network or filesystem, and contract violations fail loudly.</li>
+  </ul>
+</section>
+
+<footer>
+  bettervibe agentic engineering vibe check · 2026-05-13
+</footer>
+
+</body>
+</html>
