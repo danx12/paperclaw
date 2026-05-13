@@ -8,6 +8,7 @@ python = ">=3.12"
 
 [pypi-dependencies]
 paperclaw = { path = ".", editable = true }
+mcp = ">=1.0"
 
 [feature.dev.pypi-dependencies]
 pytest = ">=8.2"

@@ -51,8 +51,8 @@ _DOC_TYPES = (
     ', "other"'
 )
 
-_CLASSIFY_USER = f"""\
-Classify the following document. Return a JSON object with exactly these fields:
+_CLASSIFY_SYSTEM = f"""\
+Classify the document provided by the user. Return a JSON object with these fields:
 - doc_type: one of {_DOC_TYPES}
   Use "receipt" for point-of-sale / till receipts (no payment terms).
   Use "bill" for utility / service bills (electricity, gas, water, telecoms).
@@ -66,9 +66,6 @@ Classify the following document. Return a JSON object with exactly these fields:
 - currency: ISO 4217 3-letter code or null
 - reference: string or null
 - confidence: number between 0.0 and 1.0
-
-Document text:
-{{text}}
 
 Return only valid JSON, no explanation."""
 
@@ -167,11 +164,11 @@ class ClaudeClassifier:
         )
 
     def _classify_text(self, text: str) -> dict[str, object]:
-        prompt = _CLASSIFY_USER.format(text=text[:8000])
         msg = self._client.messages.create(
             model=self._model,
             max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+            system=_CLASSIFY_SYSTEM,
+            messages=[{"role": "user", "content": text[:8000]}],
         )
         return _extract_json(msg.content[0].text)  # type: ignore[union-attr]
 
